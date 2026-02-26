@@ -170,3 +170,10 @@ Below are some quick guides to use rslidar_sdk.
 [Record rosbag &amp; Replay it](doc/howto/11_how_to_record_replay_packet_rosbag.md)
 
 [Solution for ROS2_humble frame rate reduction](doc/howto/13_how_to_solve_ROS2_humble_frame_rate_drop.md)
+
+# To enable IMU build with: 
+
+```
+catkin build --cmake-args -DENABLE_IMU_DATA_PARSE=ON
+```
+

@@ -265,12 +265,24 @@ void SourceDriver::onDeviceInfo(const DeviceInfo& info)
   };
   const float p[3] = { info.x, info.y, info.z };
 
-  auto fmt_row = [&](int i, float last) -> std::string {
+  // Inverse: T_imu_lidar = [R^T  -R^T*p; 0  1]
+  const float rt[3][3] = {
+    { r[0][0], r[1][0], r[2][0] },
+    { r[0][1], r[1][1], r[2][1] },
+    { r[0][2], r[1][2], r[2][2] }
+  };
+  const float pi[3] = {
+    -(rt[0][0]*p[0] + rt[0][1]*p[1] + rt[0][2]*p[2]),
+    -(rt[1][0]*p[0] + rt[1][1]*p[1] + rt[1][2]*p[2]),
+    -(rt[2][0]*p[0] + rt[2][1]*p[1] + rt[2][2]*p[2])
+  };
+
+  auto fmt_row = [&](const float (&row)[3], float last) -> std::string {
     std::ostringstream s;
     s << std::fixed << std::setprecision(6)
-      << "  [ " << std::setw(10) << r[i][0]
-      << "  "   << std::setw(10) << r[i][1]
-      << "  "   << std::setw(10) << r[i][2]
+      << "  [ " << std::setw(10) << row[0]
+      << "  "   << std::setw(10) << row[1]
+      << "  "   << std::setw(10) << row[2]
       << "  "   << std::setw(10) << last << " ]";
     return s.str();
   };
@@ -280,11 +292,20 @@ void SourceDriver::onDeviceInfo(const DeviceInfo& info)
   RS_INFO  << "  Convention: T_lidar_imu  (IMU frame expressed in LiDAR frame)" << RS_REND;
   RS_INFO  << "  T_lidar_imu = [ R  p ]" << RS_REND;
   RS_INFO  << "                [ 0  1 ]" << RS_REND;
-  RS_INFOL << fmt_row(0, p[0]) << RS_REND;
-  RS_INFOL << fmt_row(1, p[1]) << RS_REND;
-  RS_INFOL << fmt_row(2, p[2]) << RS_REND;
+  RS_INFOL << fmt_row(r[0], p[0]) << RS_REND;
+  RS_INFOL << fmt_row(r[1], p[1]) << RS_REND;
+  RS_INFOL << fmt_row(r[2], p[2]) << RS_REND;
   RS_INFOL << "  [   0.000000    0.000000    0.000000    1.000000 ]" << RS_REND;
   RS_INFO  << "  TF: rslidar (parent) -> rslidar_imu (child)" << RS_REND;
+  RS_INFO  << "" << RS_REND;
+  RS_INFO  << "  Convention: T_imu_lidar  (LiDAR frame expressed in IMU frame)" << RS_REND;
+  RS_INFO  << "  T_imu_lidar = [ R^T  -R^T*p ]" << RS_REND;
+  RS_INFO  << "                [  0      1   ]" << RS_REND;
+  RS_INFOL << fmt_row(rt[0], pi[0]) << RS_REND;
+  RS_INFOL << fmt_row(rt[1], pi[1]) << RS_REND;
+  RS_INFOL << fmt_row(rt[2], pi[2]) << RS_REND;
+  RS_INFOL << "  [   0.000000    0.000000    0.000000    1.000000 ]" << RS_REND;
+  RS_INFO  << "  TF: rslidar_imu (parent) -> rslidar (child)" << RS_REND;
   RS_INFO  << "------------------------------------------------------" << RS_REND;
   sendDeviceInfo(info);
 }

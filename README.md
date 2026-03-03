@@ -177,3 +177,9 @@ Below are some quick guides to use rslidar_sdk.
 catkin build --cmake-args -DENABLE_IMU_DATA_PARSE=ON
 ```
 
+# To enable DIFOP parse build with: 
+
+```
+catkin build rslidar_sdk --cmake-args -DENABLE_DIFOP_PARSE=ON -DENABLE_IMU_DATA_PARSE=ON
+```
+

@@ -37,6 +37,9 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <rs_driver/api/lidar_driver.hpp>
 #include <rs_driver/utility/sync_queue.hpp>
 
+#include <iomanip>
+#include <sstream>
+
 namespace robosense
 {
 namespace lidar
@@ -61,6 +64,7 @@ protected:
   void putPacket(const Packet& msg);
   void putException(const lidar::Error& msg);
   void processPointCloud();
+  void onDeviceInfo(const DeviceInfo& info);
 
   std::shared_ptr<lidar::LidarDriver<LidarPointCloudMsg>> driver_ptr_;
   SyncQueue<std::shared_ptr<LidarPointCloudMsg>> free_point_cloud_queue_;
@@ -152,10 +156,12 @@ inline void SourceDriver::init(const YAML::Node& config)
   driver_param.print();
 
   driver_ptr_.reset(new lidar::LidarDriver<LidarPointCloudMsg>());
-  driver_ptr_->regPointCloudCallback(std::bind(&SourceDriver::getPointCloud, this), 
+  driver_ptr_->regPointCloudCallback(std::bind(&SourceDriver::getPointCloud, this),
       std::bind(&SourceDriver::putPointCloud, this, std::placeholders::_1));
   driver_ptr_->regExceptionCallback(
       std::bind(&SourceDriver::putException, this, std::placeholders::_1));
+  driver_ptr_->regDeviceInfoCallback(
+      std::bind(&SourceDriver::onDeviceInfo, this, std::placeholders::_1));
   point_cloud_process_thread_ = std::thread(std::bind(&SourceDriver::processPointCloud, this));
 
 #ifdef ENABLE_IMU_DATA_PARSE
@@ -248,6 +254,41 @@ void SourceDriver::processImuData()
   }
 }
 #endif
+void SourceDriver::onDeviceInfo(const DeviceInfo& info)
+{
+  // Rotation matrix from quaternion (Hamilton convention)
+  const float qx = info.qx, qy = info.qy, qz = info.qz, qw = info.qw;
+  const float r[3][3] = {
+    { 1-2*(qy*qy+qz*qz),   2*(qx*qy-qz*qw),   2*(qx*qz+qy*qw) },
+    {   2*(qx*qy+qz*qw), 1-2*(qx*qx+qz*qz),   2*(qy*qz-qx*qw) },
+    {   2*(qx*qz-qy*qw),   2*(qy*qz+qx*qw), 1-2*(qx*qx+qy*qy) }
+  };
+  const float p[3] = { info.x, info.y, info.z };
+
+  auto fmt_row = [&](int i, float last) -> std::string {
+    std::ostringstream s;
+    s << std::fixed << std::setprecision(6)
+      << "  [ " << std::setw(10) << r[i][0]
+      << "  "   << std::setw(10) << r[i][1]
+      << "  "   << std::setw(10) << r[i][2]
+      << "  "   << std::setw(10) << last << " ]";
+    return s.str();
+  };
+
+  RS_INFO  << "------------------------------------------------------" << RS_REND;
+  RS_INFO  << "  IMU Extrinsic Calibration (from DIFOP packet)" << RS_REND;
+  RS_INFO  << "  Convention: T_lidar_imu  (IMU frame expressed in LiDAR frame)" << RS_REND;
+  RS_INFO  << "  T_lidar_imu = [ R  p ]" << RS_REND;
+  RS_INFO  << "                [ 0  1 ]" << RS_REND;
+  RS_INFOL << fmt_row(0, p[0]) << RS_REND;
+  RS_INFOL << fmt_row(1, p[1]) << RS_REND;
+  RS_INFOL << fmt_row(2, p[2]) << RS_REND;
+  RS_INFOL << "  [   0.000000    0.000000    0.000000    1.000000 ]" << RS_REND;
+  RS_INFO  << "  TF: rslidar (parent) -> rslidar_imu (child)" << RS_REND;
+  RS_INFO  << "------------------------------------------------------" << RS_REND;
+  sendDeviceInfo(info);
+}
+
 void SourceDriver::processPointCloud()
 {
   while (!to_exit_process_)
@@ -258,7 +299,7 @@ void SourceDriver::processPointCloud()
       continue;
     }
     sendPointCloud(msg);
-    
+
     free_point_cloud_queue_.push(msg);
   }
 }

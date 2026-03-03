@@ -112,11 +112,15 @@ if(roscpp_FOUND)
   find_package(catkin REQUIRED COMPONENTS
     roscpp
     sensor_msgs
-    roslib)
+    roslib
+    tf2_ros
+    geometry_msgs)
 
-  catkin_package(CATKIN_DEPENDS 
-    sensor_msgs 
-    roslib)
+  catkin_package(CATKIN_DEPENDS
+    sensor_msgs
+    roslib
+    tf2_ros
+    geometry_msgs)
 
 else(roscpp_FOUND)
 
@@ -141,7 +145,9 @@ if(rclcpp_FOUND)
   find_package(ament_cmake REQUIRED)
   find_package(sensor_msgs REQUIRED)
   find_package(rslidar_msg REQUIRED)
-  find_package(std_msgs REQUIRED)                      
+  find_package(std_msgs REQUIRED)
+  find_package(tf2_ros REQUIRED)
+  find_package(geometry_msgs REQUIRED)                      
 
 else(rclcpp_FOUND)
   message(=============================================================)
@@ -175,8 +181,9 @@ target_link_libraries(rslidar_sdk_node
 #Ros#
 if(roscpp_FOUND)
 
-  target_link_libraries(rslidar_sdk_node 
-    ${ROS_LIBS})
+  target_link_libraries(rslidar_sdk_node
+    ${ROS_LIBS}
+    ${catkin_LIBRARIES})
 
   install(TARGETS rslidar_sdk_node
           RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -188,11 +195,13 @@ endif(roscpp_FOUND)
 #Ros2#
 if(rclcpp_FOUND)
 
-  ament_target_dependencies(rslidar_sdk_node 
-    rclcpp 
-    std_msgs 
-    sensor_msgs 
-    rslidar_msg)
+  ament_target_dependencies(rslidar_sdk_node
+    rclcpp
+    std_msgs
+    sensor_msgs
+    rslidar_msg
+    tf2_ros
+    geometry_msgs)
 
   install(TARGETS
     rslidar_sdk_node
